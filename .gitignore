@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+backend/.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/tsconfig.tsbuildinfo
+
+# Claude Code runtime (не относится к коду проекта)
+.claude/scheduled_tasks.lock
+
+# Случайные артефакты
+/Google
+
+# Данные и секреты
+.env
+data/
+*.sqlite
+*.sqlite-journal
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

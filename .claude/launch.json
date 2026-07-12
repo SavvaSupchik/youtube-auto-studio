@@ -1,0 +1,25 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-Command",
+        "Set-Location 'C:\\Users\\savva\\Projects\\YouTube Auto Studio-frontend'; npm run dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-Command",
+        "Set-Location 'C:\\Google Disk2.0\\Другие компьютеры\\Ноутбук\\Google Диск Sav\\AI_projects\\YouTube Auto Studio\\backend'; & 'C:\\Users\\savva\\Projects\\YouTube Auto Studio-backend\\.venv\\Scripts\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
+      ],
+      "port": 8000
+    }
+  ]
+}
