@@ -815,3 +815,34 @@ def get_subtitles(video_id: str, lang: str, db: Session = Depends(get_db)):
             "Content-Disposition": f'attachment; filename="subtitles_{lang}.srt"',
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Открыть папку видео в проводнике (локальное приложение)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/videos/{video_id}/open-folder")
+def open_video_folder(video_id: str, db: Session = Depends(get_db)):
+    """Открывает папку видео (сценарии, аудио, финальные mp4) в проводнике ОС.
+
+    Приложение локальное (см. CLAUDE.md — без auth), поэтому открытие
+    папки на машине пользователя — ожидаемое поведение.
+    """
+    import os
+    import subprocess
+    import sys
+
+    video = _video_or_404(db, video_id)
+    folder = paths.video_dir(video.project_id, video_id)
+    folder.mkdir(parents=True, exist_ok=True)
+    try:
+        if sys.platform == "win32":
+            os.startfile(str(folder))  # noqa: S606
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", str(folder)])
+        else:
+            subprocess.Popen(["xdg-open", str(folder)])
+    except OSError as e:
+        raise HTTPException(500, f"Не удалось открыть папку: {e}") from e
+    return {"folder": str(folder)}

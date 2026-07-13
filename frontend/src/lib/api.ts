@@ -3,6 +3,7 @@ import type {
   Analysis,
   AppSettings,
   AudioTrack,
+  CostEstimate,
   GenLog,
   GlobalStats,
   MemoryEntry,
@@ -211,6 +212,12 @@ export const api = {
     http<{ url: string }>(`/api/videos/${videoId}/preview-render`, { method: "POST" }),
   youtubePackage: (videoId: string) =>
     http<YouTubePackage>(`/api/videos/${videoId}/youtube-package`),
+  openVideoFolder: (videoId: string) =>
+    http<{ folder: string }>(`/api/videos/${videoId}/open-folder`, { method: "POST" }),
+  estimateCost: (projectId: string, p: { duration_min: number; visuals: boolean; translate: boolean }) =>
+    http<CostEstimate>(
+      `/api/projects/${projectId}/estimate?duration_min=${p.duration_min}&visuals=${p.visuals}&translate=${p.translate}`
+    ),
 
   // Niche analysis
   nicheStatus: () => http<NicheStatus>("/api/niche/status"),

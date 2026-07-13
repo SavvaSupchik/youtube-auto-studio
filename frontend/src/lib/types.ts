@@ -53,6 +53,15 @@ export interface YouTubePackage {
   tags_string: string;
 }
 
+export interface CostEstimate {
+  llm_usd: number;
+  visuals_usd: number;
+  total_usd: number;
+  n_images: number;
+  based_on_history: boolean;
+  llm_provider: string;
+}
+
 export interface Script {
   id: string;
   video_id: string;

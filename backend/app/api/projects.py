@@ -177,3 +177,75 @@ def project_stats(project_id: str, db: Session = Depends(get_db)):
         "total_duration_sec": total_duration,
         "top_topics": topic_counter.most_common(10),
     }
+
+
+@router.get("/{project_id}/estimate")
+def estimate_cost(
+    project_id: str,
+    duration_min: int = 12,
+    visuals: bool = False,
+    translate: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Оценка стоимости генерации нового видео ДО запуска пайплайна.
+
+    LLM-часть считается по средним фактическим расходам прошлых видео этого
+    канала (generation_logs); если истории нет — по грубым константам.
+    Картинки — по числу сцен и тарифам Replicate из pipeline.
+    """
+    import math
+
+    from app.core.config import settings
+    from app.models.generation_log import GenerationLog
+    from app.services.pipeline import _IMAGE_COST_USD, _UPSCALE_COST_USD
+
+    _get_or_404(db, project_id)
+
+    video_ids = [v.id for v in db.query(Video.id).filter(Video.project_id == project_id).all()]
+
+    def _avg_stage_cost(prefix: str, fallback: float) -> tuple[float, bool]:
+        """Средняя фактическая стоимость стадии по истории канала."""
+        if not video_ids:
+            return fallback, False
+        rows = (
+            db.query(GenerationLog.cost_usd)
+            .filter(
+                GenerationLog.video_id.in_(video_ids),
+                GenerationLog.stage.like(f"{prefix}%"),
+                GenerationLog.status == "success",
+                GenerationLog.cost_usd.isnot(None),
+            )
+            .all()
+        )
+        costs = [r[0] for r in rows if r[0] is not None]
+        if not costs:
+            return fallback, False
+        return sum(costs) / len(costs), True
+
+    # Грубые константы-фолбэки (Claude Sonnet; на Gemini free фактически 0)
+    script_cost, script_hist = _avg_stage_cost("script", 0.15)
+    analysis_cost, _ = _avg_stage_cost("analysis", 0.02)
+    translate_cost, _ = _avg_stage_cost("translate", 0.08)
+
+    llm_usd = script_cost + analysis_cost
+    if translate:
+        llm_usd += translate_cost
+
+    n_images = 0
+    visuals_usd = 0.0
+    if visuals:
+        n_images = min(
+            max(1, math.ceil(duration_min / settings.visual_segment_minutes)),
+            settings.visual_max_images,
+        )
+        per_image = _IMAGE_COST_USD + (_UPSCALE_COST_USD if settings.visual_upscale else 0.0)
+        visuals_usd = n_images * per_image
+
+    return {
+        "llm_usd": round(llm_usd, 4),
+        "visuals_usd": round(visuals_usd, 4),
+        "total_usd": round(llm_usd + visuals_usd, 4),
+        "n_images": n_images,
+        "based_on_history": script_hist,
+        "llm_provider": settings.llm_provider,
+    }

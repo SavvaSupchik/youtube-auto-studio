@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Loader2, RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, FolderOpen, Loader2, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { api, fileUrl, srtUrl } from "../lib/api";
 import { fmtDuration } from "../lib/format";
 import { StatusBadge } from "../components/StatusBadge";
@@ -204,6 +204,13 @@ export default function VideoView() {
           </button>
           <ThumbnailHistory videoId={videoId} projectId={video.project_id} onRestore={() => setThumbTs(Date.now())} />
           <MusicSelector videoId={videoId} />
+          <button
+            className="btn-ghost w-full"
+            onClick={() => api.openVideoFolder(videoId).catch((e) => alert(e.message))}
+            title="Открыть папку со сценариями, аудио и финальными mp4 в проводнике"
+          >
+            <FolderOpen size={16} /> Открыть папку
+          </button>
           <button
             className="btn-ghost w-full text-red-400"
             onClick={() => confirm("Удалить видео?") && del.mutate()}

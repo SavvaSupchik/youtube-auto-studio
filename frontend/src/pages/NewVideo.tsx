@@ -37,6 +37,18 @@ export default function NewVideo() {
     onSuccess: (data) => setIdeas(data),
   });
 
+  // Оценка стоимости до запуска (обновляется при смене длительности/стадий)
+  const { data: estimate } = useQuery({
+    queryKey: ["estimate", projectId, duration, runVisuals, runTranslate],
+    queryFn: () =>
+      api.estimateCost(projectId, {
+        duration_min: duration,
+        visuals: runVisuals,
+        translate: runTranslate,
+      }),
+    staleTime: 60_000,
+  });
+
   const { events, done } = useJobSocket(videoId, !!videoId);
 
   // Пакетный режим: каждая непустая строка поля темы — отдельное видео
@@ -329,6 +341,20 @@ export default function NewVideo() {
             <p className="text-xs text-muted">
               Нужен ключ REPLICATE_API_TOKEN в .env (платно, ~$0.003 за картинку). Без него стадия
               просто пропустится, рендер будет со статичной обложкой.
+            </p>
+          )}
+
+          {estimate && scriptMode === "generate" && (
+            <p className="text-xs text-muted">
+              Оценка стоимости{batchMode && batchTopics.length > 1 ? ` (×${batchTopics.length} видео)` : ""}:{" "}
+              <span className="text-gray-300">
+                ≈ ${((estimate.total_usd) * (batchMode ? Math.max(batchTopics.length, 1) : 1)).toFixed(2)}
+              </span>
+              {" — "}LLM ${estimate.llm_usd.toFixed(2)}
+              {estimate.n_images > 0 && <> + {estimate.n_images} картинок ${estimate.visuals_usd.toFixed(2)}</>}
+              {estimate.based_on_history
+                ? " (по средним расходам канала)"
+                : ` (грубая оценка, провайдер: ${estimate.llm_provider})`}
             </p>
           )}
 
