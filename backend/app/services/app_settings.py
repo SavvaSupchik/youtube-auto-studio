@@ -16,7 +16,17 @@ from loguru import logger
 
 from app.core import paths
 
-_DEFAULTS: dict = {"default_voices": {}}
+# voice_params — глобальные параметры «живости» голоса (см. tts_service).
+_DEFAULT_VOICE_PARAMS: dict = {
+    "speed": 0.95,
+    "pitch": 0,
+    "sentence_pause_ms": 160,
+    "paragraph_pause_ms": 650,
+    "post_process": True,
+    "warmth": 0.35,
+}
+
+_DEFAULTS: dict = {"default_voices": {}, "voice_params": dict(_DEFAULT_VOICE_PARAMS)}
 
 
 def load() -> dict:
@@ -44,3 +54,9 @@ def save(patch: dict) -> dict:
 
 def get_default_voices() -> dict[str, str]:
     return load().get("default_voices") or {}
+
+
+def get_voice_params() -> dict:
+    """Параметры «живости» голоса (с дефолтами для отсутствующих ключей)."""
+    stored = load().get("voice_params") or {}
+    return {**_DEFAULT_VOICE_PARAMS, **stored}

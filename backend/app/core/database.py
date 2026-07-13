@@ -82,15 +82,24 @@ def _ensure_columns() -> None:
 # tts_service до появления библиотеки голосов. Помечены is_builtin=True,
 # чтобы их нельзя было удалить (но можно добавить свои рядом).
 _BUILTIN_VOICES = [
-    ("Kokoro EN — Heart (ж)", "en", "af_heart", "Стандартный женский голос Kokoro для английского"),
-    ("Kokoro ES — Dora (ж)", "es", "ef_dora", "Стандартный голос Kokoro для испанского"),
-    ("Kokoro FR — Siwis (ж)", "fr", "ff_siwis", "Стандартный голос Kokoro для французского"),
-    ("Kokoro IT — Sara (ж)", "it", "if_sara", "Стандартный голос Kokoro для итальянского"),
-    ("Kokoro PT — Dora (ж)", "pt", "pf_dora", "Стандартный голос Kokoro для португальского"),
-    ("Kokoro JA — Alpha (ж)", "ja", "jf_alpha", "Стандартный голос Kokoro для японского"),
-    ("Kokoro ZH — Xiaobei (ж)", "zh", "zf_xiaobei", "Стандартный голос Kokoro для китайского"),
-    ("Kokoro HI — Alpha (ж)", "hi", "hf_alpha", "Стандартный голос Kokoro для хинди"),
-    ("Kokoro RU (через EN, workaround)", "ru", "af_heart", "У Kokoro нет нативного русского — используется английский голос"),
+    # Edge TTS — нативные голоса, бесплатно, без GPU. Лучший выбор для русского.
+    ("Edge RU — Дмитрий (м)", "ru", "edge", "ru-RU-DmitryNeural", "Нативный русский мужской голос (Microsoft Edge TTS)"),
+    ("Edge RU — Светлана (ж)", "ru", "edge", "ru-RU-SvetlanaNeural", "Нативный русский женский голос (Microsoft Edge TTS)"),
+    ("Edge EN — Brian (м, спокойный)", "en", "edge", "en-US-BrianNeural", "Тёплый спокойный мужской голос — хорошо для «History for Sleep»"),
+    ("Edge EN — Aria (ж)", "en", "edge", "en-US-AriaNeural", "Женский английский голос (Microsoft Edge TTS)"),
+    ("Edge EN — Guy (м)", "en", "edge", "en-US-GuyNeural", "Мужской английский голос (Microsoft Edge TTS)"),
+    ("Edge ES — Álvaro (м)", "es", "edge", "es-ES-AlvaroNeural", "Испанский мужской голос (Microsoft Edge TTS)"),
+    ("Edge FR — Henri (м)", "fr", "edge", "fr-FR-HenriNeural", "Французский мужской голос (Microsoft Edge TTS)"),
+    ("Edge DE — Conrad (м)", "de", "edge", "de-DE-ConradNeural", "Немецкий мужской голос (Microsoft Edge TTS)"),
+    # Kokoro — локальный синтез (GPU/CPU). Нет нативного русского.
+    ("Kokoro EN — Heart (ж)", "en", "kokoro", "af_heart", "Стандартный женский голос Kokoro для английского"),
+    ("Kokoro ES — Dora (ж)", "es", "kokoro", "ef_dora", "Стандартный голос Kokoro для испанского"),
+    ("Kokoro FR — Siwis (ж)", "fr", "kokoro", "ff_siwis", "Стандартный голос Kokoro для французского"),
+    ("Kokoro IT — Sara (ж)", "it", "kokoro", "if_sara", "Стандартный голос Kokoro для итальянского"),
+    ("Kokoro PT — Dora (ж)", "pt", "kokoro", "pf_dora", "Стандартный голос Kokoro для португальского"),
+    ("Kokoro JA — Alpha (ж)", "ja", "kokoro", "jf_alpha", "Стандартный голос Kokoro для японского"),
+    ("Kokoro ZH — Xiaobei (ж)", "zh", "kokoro", "zf_xiaobei", "Стандартный голос Kokoro для китайского"),
+    ("Kokoro HI — Alpha (ж)", "hi", "kokoro", "hf_alpha", "Стандартный голос Kokoro для хинди"),
 ]
 
 
@@ -100,10 +109,10 @@ def _seed_builtin_voices() -> None:
     db = SessionLocal()
     try:
         existing = {(v.language, v.voice_id) for v in db.query(Voice).filter(Voice.is_builtin == True)}  # noqa: E712
-        for name, lang, voice_id, desc in _BUILTIN_VOICES:
+        for name, lang, engine, voice_id, desc in _BUILTIN_VOICES:
             if (lang, voice_id) in existing:
                 continue
-            db.add(Voice(name=name, language=lang, engine="kokoro", voice_id=voice_id, description=desc, is_builtin=True))
+            db.add(Voice(name=name, language=lang, engine=engine, voice_id=voice_id, description=desc, is_builtin=True))
         db.commit()
     finally:
         db.close()

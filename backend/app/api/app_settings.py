@@ -23,3 +23,9 @@ def update_settings(payload: AppSettingsUpdate):
     if "default_voices" in patch and patch["default_voices"] is not None:
         patch["default_voices"] = {k: v for k, v in patch["default_voices"].items() if v}
     return svc.save(patch)
+
+
+@router.post("/settings/voice-params/reset", response_model=AppSettingsOut)
+def reset_voice_params():
+    """Сбрасывает параметры голоса к значениям по умолчанию."""
+    return svc.save({"voice_params": dict(svc._DEFAULT_VOICE_PARAMS)})

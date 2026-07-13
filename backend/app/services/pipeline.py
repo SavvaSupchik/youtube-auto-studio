@@ -424,12 +424,14 @@ def _stage_tts(db, video: Video, project: Project, lang: str) -> None:
             **(project.voice_settings or {}),
             **(video.voice_overrides or {}),
         }
+        voice_params = app_settings.get_voice_params()
         res = tts_service.synthesize(
             text=script.content_md,
             language=lang,
             out_path=out,
             tts_mode=project.tts_mode,
             voice_settings=effective_voices,
+            voice_params=voice_params,
         )
         # Если включено интро канала — синтезируем его и склеиваем с основным аудио
         final_audio_path = res.file_path
@@ -447,6 +449,7 @@ def _stage_tts(db, video: Video, project: Project, lang: str) -> None:
                     out_path=intro_out,
                     tts_mode="local",
                     voice_settings=effective_voices,
+                    voice_params=voice_params,
                 )
                 if intro_out.exists():
                     merged = paths.audio_with_intro_file(project.id, video.id, lang, version=new_ver)

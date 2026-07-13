@@ -31,6 +31,7 @@ pytest==8.3.4
 pytest-asyncio==0.25.0
 
 # --- Optional / heavy (TTS, video) — устанавливаются отдельно при необходимости ---
+# edge-tts>=7.0.0    # бесплатный TTS с нативным русским (ru-RU-Dmitry/Svetlana), без GPU
 # kokoro>=0.9.2
 # soundfile==0.13.0
 # moviepy==2.1.1

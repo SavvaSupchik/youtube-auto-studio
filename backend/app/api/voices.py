@@ -8,7 +8,7 @@ from app.core import paths
 from app.core.database import get_db
 from app.models.voice import Voice
 from app.schemas.voice import VoiceCreate, VoiceOut, VoiceUpdate
-from app.services import tts_service
+from app.services import app_settings, tts_service
 from app.services.tts_service import TTSError
 
 router = APIRouter(prefix="/api/voices", tags=["voices"])
@@ -58,17 +58,20 @@ def delete_voice(voice_id: str, db: Session = Depends(get_db)):
 def generate_preview(voice_id: str, db: Session = Depends(get_db)):
     """Генерирует короткий демо-сэмпл голоса, чтобы его можно было прослушать.
 
-    Доступно только для голосов с engine="kokoro" — у "manual" нет движка
-    синтеза, его нечем озвучить заранее.
+    Доступно для синтезируемых движков (kokoro/edge). У "manual" нет движка
+    синтеза, его нечем озвучить заранее. Применяются глобальные параметры
+    голоса, чтобы демо звучало так же, как финальная озвучка.
     """
     voice = db.get(Voice, voice_id)
     if voice is None:
         raise HTTPException(404, "Голос не найден")
-    if voice.engine != "kokoro":
-        raise HTTPException(400, "Прослушать можно только голоса с движком Kokoro")
+    if voice.engine == "manual":
+        raise HTTPException(400, "Ручной голос нечем прослушать — озвучка загружается вручную")
     out_path = paths.voice_preview_file(voice.id)
     try:
-        tts_service.synthesize_preview(voice.language, voice.voice_id, out_path)
+        tts_service.synthesize_preview(
+            voice.language, voice.voice_id, out_path, app_settings.get_voice_params()
+        )
     except TTSError as e:
         raise HTTPException(400, str(e)) from e
     return {"status": "ok", "url": f"/files/voices/{voice.id}.wav"}

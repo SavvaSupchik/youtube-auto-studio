@@ -180,8 +180,18 @@ export interface VisualAsset {
   asset_metadata: { index: number; prompt: string; style?: string; version?: number; archived?: boolean };
 }
 
+export interface VoiceParams {
+  speed: number; // темп речи 0.5–1.5 (1.0 = норма)
+  pitch: number; // сдвиг высоты тона в полутонах, -6..+6 (только Edge)
+  sentence_pause_ms: number; // пауза между предложениями
+  paragraph_pause_ms: number; // пауза между абзацами
+  post_process: boolean; // тёплая пост-обработка (компрессия + EQ + реверб)
+  warmth: number; // интенсивность тепла/реверберации 0–1
+}
+
 export interface AppSettings {
   default_voices: Record<string, string>;
+  voice_params: VoiceParams;
 }
 
 export interface ScriptTemplate {

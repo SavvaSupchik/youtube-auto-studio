@@ -155,6 +155,8 @@ export const api = {
   getSettings: () => http<AppSettings>("/api/settings"),
   saveSettings: (data: Partial<AppSettings>) =>
     http<AppSettings>("/api/settings", { method: "PUT", body: JSON.stringify(data) }),
+  resetVoiceParams: () =>
+    http<AppSettings>("/api/settings/voice-params/reset", { method: "POST" }),
 
   // Шаблоны сценария (глобальные, редактируются в Настройках)
   listTemplates: () => http<ScriptTemplate[]>("/api/templates"),
