@@ -46,6 +46,37 @@ _QUALITY_SUFFIX = (
 )
 
 
+# Модели, доступные для выбора при (пере)генерации видеоряда — id совпадает
+# со slug'ом на Replicate, кроме "gemini" (отдельный бесплатный движок).
+IMAGE_MODEL_OPTIONS: list[dict] = [
+    {"id": "black-forest-labs/flux-2-dev", "label": "FLUX.2 [dev] — баланс цена/качество (~$0.012/шт)"},
+    {"id": "black-forest-labs/flux-2-pro", "label": "FLUX.2 [pro] — топ качество FLUX.2 (~$0.055/шт)"},
+    {"id": "black-forest-labs/flux-schnell", "label": "FLUX Schnell — самая дешёвая (~$0.003/шт)"},
+    {"id": "black-forest-labs/flux-dev", "label": "FLUX Dev (~$0.025/шт)"},
+    {"id": "black-forest-labs/flux-1.1-pro", "label": "FLUX 1.1 Pro (~$0.04/шт)"},
+    {"id": "ideogram-ai/ideogram-v3-turbo", "label": "Ideogram V3 Turbo — лучший текст в кадре (~$0.03/шт)"},
+    {"id": "gemini", "label": "Gemini (Nano Banana) — бесплатно при наличии ключа"},
+]
+
+
+def _build_image_input(model: str, prompt: str, seed: int | None) -> dict:
+    """Собирает input для Replicate под конкретную модель — у разных семейств разные схемы полей."""
+    base: dict = {"prompt": prompt}
+    if model.startswith("black-forest-labs/flux"):
+        base.update({"num_outputs": 1, "aspect_ratio": "16:9", "output_format": "png"})
+        if model.endswith("flux-schnell") or model.endswith("flux-dev"):
+            base["go_fast"] = True
+        if model.endswith("flux-1.1-pro"):
+            base.update({"output_quality": 100, "safety_tolerance": 2, "prompt_upsampling": True})
+        if seed is not None:
+            base["seed"] = seed
+    elif model.startswith("ideogram-ai/"):
+        base.update({"aspect_ratio": "16:9", "magic_prompt_option": "Off"})
+    else:
+        base["aspect_ratio"] = "16:9"
+    return base
+
+
 def segments_for_duration(duration_sec: int) -> int:
     """Сколько картинок нужно при смене каждые visual_segment_minutes минут."""
     if duration_sec <= 0:
@@ -223,9 +254,13 @@ def _save_output(output, out_path) -> None:
             raise ImageGenError(f"Не удалось сохранить файл Replicate: {e}") from e
 
 
-def generate_image(prompt: str, out_path, seed: int | None = None, reference_image_path=None) -> None:
-    """Генерирует одну картинку через Replicate (FLUX) и сохраняет в out_path.
+def generate_image(
+    prompt: str, out_path, seed: int | None = None, reference_image_path=None, model: str | None = None
+) -> None:
+    """Генерирует одну картинку через Replicate и сохраняет в out_path.
 
+    model — slug модели на Replicate (см. IMAGE_MODEL_OPTIONS); по умолчанию
+    берётся settings.replicate_image_model (FLUX.2 [dev]).
     seed — общий на всё видео сид для более стабильной композиции/палитры.
     reference_image_path — опорная картинка (первая в серии): если задана и
     включён settings.visual_use_reference, генерация идёт в режиме img2img,
@@ -233,15 +268,8 @@ def generate_image(prompt: str, out_path, seed: int | None = None, reference_ima
     откатываемся на обычную text-to-image генерацию.
     """
     client = _ensure_replicate()
-    base_input: dict = {
-        "prompt": prompt,
-        "num_outputs": 1,
-        "aspect_ratio": "16:9",
-        "output_format": "png",
-        "go_fast": True,
-    }
-    if seed is not None:
-        base_input["seed"] = seed
+    model = model or settings.replicate_image_model
+    base_input = _build_image_input(model, prompt, seed)
 
     use_ref = bool(reference_image_path) and settings.visual_use_reference
     output = None
@@ -250,7 +278,7 @@ def generate_image(prompt: str, out_path, seed: int | None = None, reference_ima
         try:
             ref_file = open(reference_image_path, "rb")
             ref_input = {**base_input, "image": ref_file, "prompt_strength": settings.visual_reference_strength}
-            output = _run_replicate(client, settings.replicate_image_model, ref_input)
+            output = _run_replicate(client, model, ref_input)
         except ImageGenError as e:
             # Модель не понимает входной image (например, flux-schnell) -> text-only.
             logger.warning("img2img-референс не сработал, fallback text-only: {err}", err=str(e)[:160])
@@ -259,7 +287,7 @@ def generate_image(prompt: str, out_path, seed: int | None = None, reference_ima
             if ref_file is not None:
                 ref_file.close()
     if output is None:
-        output = _run_replicate(client, settings.replicate_image_model, base_input)
+        output = _run_replicate(client, model, base_input)
 
     _save_output(output, out_path)
 

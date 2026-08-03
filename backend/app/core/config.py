@@ -49,9 +49,9 @@ class Settings(BaseSettings):
     # Внешние сервисы
     pexels_api_key: str = Field(default="", alias="PEXELS_API_KEY")
     replicate_api_token: str = Field(default="", alias="REPLICATE_API_TOKEN")
-    # Модель генерации картинок на Replicate (flux-schnell — самая дешёвая, ~$0.003/картинка)
+    # Модель генерации картинок на Replicate (FLUX.2 [dev] — баланс цена/качество, ~$0.012/картинка)
     replicate_image_model: str = Field(
-        default="black-forest-labs/flux-schnell", alias="REPLICATE_IMAGE_MODEL"
+        default="black-forest-labs/flux-2-dev", alias="REPLICATE_IMAGE_MODEL"
     )
     # Визуальный ряд: картинка меняется каждые N минут видео
     visual_segment_minutes: float = Field(default=3.0, alias="VISUAL_SEGMENT_MINUTES")

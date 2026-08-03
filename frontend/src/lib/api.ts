@@ -6,6 +6,7 @@ import type {
   CostEstimate,
   GenLog,
   GlobalStats,
+  ImageModelOption,
   MemoryEntry,
   MusicTrack,
   NicheReport,
@@ -106,6 +107,7 @@ export const api = {
     }),
   activateVisualsVersion: (id: string, version: number) =>
     http<VisualAsset[]>(`/api/videos/${id}/visuals/activate/${version}`, { method: "PUT" }),
+  imageModels: () => http<ImageModelOption[]>("/api/image-models"),
   rendersHistory: (id: string, lang: string) =>
     http<VisualAsset[]>(`/api/videos/${id}/renders/${lang}/history`),
   activateRenderVersion: (id: string, lang: string, version: number) =>

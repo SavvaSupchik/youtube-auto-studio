@@ -177,7 +177,19 @@ export interface Video {
 export interface VisualAsset {
   id: string;
   file_path: string;
-  asset_metadata: { index: number; prompt: string; style?: string; version?: number; archived?: boolean };
+  asset_metadata: {
+    index: number;
+    prompt: string;
+    style?: string;
+    version?: number;
+    archived?: boolean;
+    model?: string;
+  };
+}
+
+export interface ImageModelOption {
+  id: string;
+  label: string;
 }
 
 export interface VoiceParams {

@@ -30,10 +30,16 @@ from app.schemas.video import (
     VisualAssetOut,
     VoiceOverrideIn,
 )
-from app.services import tts_service
+from app.services import image_gen, tts_service
 from app.services.pipeline import VALID_STAGES, PipelineOptions, clear_cancel, request_cancel, run_pipeline, run_pipeline_stage
 
 router = APIRouter(prefix="/api", tags=["videos"])
+
+
+@router.get("/image-models")
+def get_image_models():
+    """Список моделей, доступных для выбора при (пере)генерации видеоряда."""
+    return image_gen.IMAGE_MODEL_OPTIONS
 
 
 def _video_or_404(db: Session, video_id: str) -> Video:

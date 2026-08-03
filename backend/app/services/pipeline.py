@@ -546,7 +546,11 @@ def _get_visual_assets(db, video_id: str) -> list[VideoAsset]:
 def _stage_visuals(db, video: Video, project: Project, visual_engine: str = "replicate") -> None:
     """AI-визуальный ряд: разбивает сценарий на сцены и рисует картинку под каждую.
 
-    visual_engine: "replicate" (FLUX, платно) или "gemini" (бесплатно при наличии ключа).
+    visual_engine:
+      - "replicate" (по умолчанию) — модель из settings.replicate_image_model (FLUX.2 [dev])
+      - "gemini" — бесплатная генерация через Gemini (Nano Banana), нужен GEMINI_API_KEY
+      - конкретный slug модели Replicate (см. image_gen.IMAGE_MODEL_OPTIONS), например
+        "ideogram-ai/ideogram-v3-turbo" — переопределяет модель только для этой генерации
     Не зависит от языка — один набор картинок используется для рендера на
     всех языках (отличается только аудио).
     """
@@ -590,6 +594,9 @@ def _stage_visuals(db, video: Video, project: Project, visual_engine: str = "rep
         seed = None if settings.visual_use_reference else random.randint(1, 2_000_000_000)
         anchor: Path | None = None
         use_gemini = visual_engine == "gemini"
+        # Конкретный slug модели Replicate, если передан явно (иначе — settings.replicate_image_model)
+        image_model = None if use_gemini or visual_engine in ("replicate", "", None) else visual_engine
+        model_used_label = "gemini" if use_gemini else (image_model or settings.replicate_image_model)
 
         ok_count = 0
         failed: list[str] = []
@@ -604,7 +611,7 @@ def _stage_visuals(db, video: Video, project: Project, visual_engine: str = "rep
                 if use_gemini:
                     image_gen.generate_image_gemini(prompt, out)
                 else:
-                    image_gen.generate_image(prompt, out, seed=seed, reference_image_path=anchor)
+                    image_gen.generate_image(prompt, out, seed=seed, reference_image_path=anchor, model=image_model)
                 if anchor is None and out.exists():
                     anchor = out  # первая удачная картинка — якорь стиля для остальных
                 if not use_gemini and settings.visual_upscale:
@@ -638,6 +645,7 @@ def _stage_visuals(db, video: Video, project: Project, visual_engine: str = "rep
                         "archived": False,
                         "prompt": prompt,
                         "style": pr.style,
+                        "model": model_used_label,
                     },
                 )
             )

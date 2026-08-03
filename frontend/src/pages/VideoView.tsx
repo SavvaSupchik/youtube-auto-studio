@@ -242,8 +242,7 @@ export default function VideoView() {
             videoId={videoId}
             visuals={visuals}
             logs={logs}
-            onRetry={() => retryStage.mutate({ stage: "visuals" })}
-            onRetryGemini={() => retryStage.mutate({ stage: "visuals", visualEngine: "gemini" })}
+            onRetry={(model) => retryStage.mutate({ stage: "visuals", visualEngine: model })}
             onCancel={() => cancelPipeline.mutate()}
             retryPending={retryStage.isPending || isStageRunning("visuals")}
           />
@@ -419,15 +418,13 @@ function VisualsSection({
   visuals,
   logs,
   onRetry,
-  onRetryGemini,
   onCancel,
   retryPending,
 }: {
   videoId: string;
   visuals?: VisualAsset[];
   logs?: GenLog[];
-  onRetry: () => void;
-  onRetryGemini: () => void;
+  onRetry: (model?: string) => void;
   onCancel: () => void;
   retryPending: boolean;
 }) {
@@ -435,6 +432,13 @@ function VisualsSection({
   const visualsError = logs?.find((l) => l.stage === "visuals" && l.status === "error");
   const hasVisuals = (visuals ?? []).length > 0;
   const [showPlaylist, setShowPlaylist] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("");
+
+  const { data: imageModels } = useQuery({
+    queryKey: ["image-models"],
+    queryFn: () => api.imageModels(),
+    staleTime: Infinity,
+  });
 
   // lightbox: { ver, index } — привязан к конкретной версии
   const [lightbox, setLightbox] = useState<{ ver: number; index: number } | null>(null);
@@ -507,7 +511,25 @@ function VisualsSection({
               Редактор ряда
             </button>
           )}
-          <button className="btn-ghost px-2 py-1 text-xs" disabled={retryPending} onClick={onRetry}>
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={retryPending}
+            className="rounded border border-white/10 bg-surface2 px-1.5 py-1 text-xs text-muted"
+            title="Модель для генерации картинок"
+          >
+            <option value="">По умолчанию (FLUX.2 [dev])</option>
+            {(imageModels ?? []).map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn-ghost px-2 py-1 text-xs"
+            disabled={retryPending}
+            onClick={() => onRetry(selectedModel || undefined)}
+          >
             <RefreshCw size={13} /> {hasVisuals ? "Перегенерировать" : "Сгенерировать"}
           </button>
         </div>
@@ -650,7 +672,8 @@ function Lightbox({
         onClick={(e) => e.stopPropagation()}
       >
         <span className="text-gray-500">
-          {index + 1} / {items.length} ·{" "}
+          {index + 1} / {items.length}
+          {v.asset_metadata.model && <> · {v.asset_metadata.model}</>} ·{" "}
         </span>
         {v.asset_metadata.prompt}
       </div>
