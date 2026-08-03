@@ -115,6 +115,9 @@ def suggest_topics(project_id: str, count: int = 6, db: Session = Depends(get_db
         "You are a YouTube content strategist. Respond ONLY with a valid JSON array, "
         "no markdown, no explanation, no code blocks. "
         "Each element: {\"title\": \"...\", \"brief\": \"...\"}. "
+        "Never use a literal double-quote character inside title or brief values — "
+        "if you need to quote something, use \\\" (escaped) or single quotes (') instead, "
+        "otherwise the JSON becomes invalid. "
         f"Generate exactly {count} ideas."
     )
     prompt = (
@@ -128,23 +131,79 @@ def suggest_topics(project_id: str, count: int = 6, db: Session = Depends(get_db
         "Reply with JSON array only."
     )
 
-    try:
-        result = llm_client.complete(system=system, prompt=prompt, max_tokens=2000, stream=False)
+    def _ask(max_tokens: int) -> str:
+        result = llm_client.complete(system=system, prompt=prompt, max_tokens=max_tokens, stream=False)
         text = result.text.strip()
-        logger.debug("[suggest-topics] raw LLM response: {t}", t=text[:300])
-
         # Убираем markdown-обёртку если модель всё же добавила ```json
         text = re.sub(r"^```[a-z]*\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
-        text = text.strip()
+        return text.strip()
 
-        # Вырезаем JSON-массив
+    # Терпимый к неэкранированным кавычкам внутри строк регэксп-разбор —
+    # последний рубеж, если строгий JSON.loads не смог распарсить ответ
+    # (модель иногда кладёт "кавычки" внутри title/brief без экранирования).
+    _idea_re = re.compile(
+        r'"title"\s*:\s*"(?P<title>(?:[^"\\]|\\.)*)"\s*,\s*"brief"\s*:\s*"(?P<brief>(?:[^"\\]|\\.)*)"',
+        re.DOTALL,
+    )
+
+    def _extract_loose(text: str) -> list[dict]:
+        def _unescape(s: str) -> str:
+            return s.replace('\\"', '"').replace("\\n", " ").replace("\\\\", "\\")
+
+        return [
+            {"title": _unescape(m.group("title")), "brief": _unescape(m.group("brief"))}
+            for m in _idea_re.finditer(text)
+        ]
+
+    def _parse(text: str) -> list[dict] | None:
+        logger.debug("[suggest-topics] raw LLM response: {t}", t=text[:300])
         start = text.find("[")
+        if start == -1:
+            return None
         end = text.rfind("]")
-        if start == -1 or end == -1:
+        if end != -1:
+            try:
+                return json.loads(text[start : end + 1])
+            except json.JSONDecodeError:
+                pass
+        # Ответ обрезан (нет закрывающей "]" или JSON битый на конце) —
+        # пытаемся восстановить массив по последнему полностью закрытому элементу.
+        last_obj_end = text.rfind("}")
+        if last_obj_end > start:
+            repaired = text[start : last_obj_end + 1] + "]"
+            try:
+                ideas = json.loads(repaired)
+                logger.warning(
+                    "[suggest-topics] ответ модели был обрезан, восстановлено {n} идей",
+                    n=len(ideas),
+                )
+                return ideas
+            except json.JSONDecodeError:
+                pass
+        # JSON битый не только на конце (например, неэкранированные кавычки в
+        # середине) — вытаскиваем title/brief пары регэкспом, не полагаясь на
+        # валидность JSON целиком.
+        loose = _extract_loose(text)
+        if loose:
+            logger.warning(
+                "[suggest-topics] JSON невалиден, восстановлено {n} идей регэкспом",
+                n=len(loose),
+            )
+            return loose
+        return None
+
+    try:
+        text = _ask(2000)
+        ideas = _parse(text)
+        if ideas is None:
+            # Одна попытка повтора с большим лимитом токенов — частая причина обрыва
+            logger.warning("[suggest-topics] не удалось распарсить ответ, повтор с увеличенным лимитом токенов")
+            text = _ask(3500)
+            ideas = _parse(text)
+        if ideas is None:
             logger.error("[suggest-topics] JSON-массив не найден в ответе: {t}", t=text[:300])
             raise ValueError("Модель не вернула JSON-массив")
-        ideas = json.loads(text[start : end + 1])
         return [TopicIdea(title=str(i.get("title", "")), brief=str(i.get("brief", ""))) for i in ideas]
     except HTTPException:
         raise
